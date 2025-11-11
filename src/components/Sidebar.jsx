@@ -1,19 +1,46 @@
-import React from 'react'
+import { useState } from "react";
+import { workspaces } from "../data";
 
-const Sidebar = () => {
+export default function Sidebar({ onSelectChannel }) {
+  const [selectedWorkspace, setSelectedWorkspace] = useState(workspaces[0]);
+  const [activeChannel, setActiveChannel] = useState(null);
+
   return (
-    <div>
-       <aside className="w-64 bg-white border-r p-4">
-      <h2 className="text-xl font-semibold mb-4">Workspaces</h2>
-      <ul>
-        <li className="p-2 rounded hover:bg-gray-200 cursor-pointer">General</li>
-        <li className="p-2 rounded hover:bg-gray-200 cursor-pointer">Development</li>
-        <li className="p-2 rounded hover:bg-gray-200 cursor-pointer">Design</li>
+    <aside className="w-64 bg-white border-r p-4 flex flex-col">
+      <h2 className="text-xl font-semibold mb-3">Workspaces</h2>
+      <select
+        value={selectedWorkspace.id}
+        onChange={(e) =>
+          setSelectedWorkspace(
+            workspaces.find((w) => w.id === e.target.value)
+          )
+        }
+        className="border rounded-lg p-2 mb-4"
+      >
+        {workspaces.map((w) => (
+          <option key={w.id} value={w.id}>
+            {w.name}
+          </option>
+        ))}
+      </select>
+
+      <h3 className="text-lg font-medium mb-2">Channels</h3>
+      <ul className="flex-1 overflow-y-auto">
+        {selectedWorkspace.channels.map((ch) => (
+          <li
+            key={ch.id}
+            onClick={() => {
+              setActiveChannel(ch);
+              onSelectChannel(ch);
+            }}
+            className={`p-2 rounded cursor-pointer ${
+              activeChannel?.id === ch.id ? "bg-blue-100" : "hover:bg-gray-200"
+            }`}
+          >
+            #{ch.name}
+          </li>
+        ))}
       </ul>
     </aside>
-    </div>
-  )
+  );
 }
-
-export default Sidebar
-
