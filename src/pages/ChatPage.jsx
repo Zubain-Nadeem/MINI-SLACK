@@ -13,8 +13,8 @@ export default function ChatPage() {
   // 🔹 Presence setup
   useEffect(() => {
     if (user) {
-      // Mark user online
-      setUserOnline(user.uid);
+      // Mark user online with name
+      setUserOnline(user.uid, user.displayName || user.email);
 
       // When user leaves → mark offline
       const handleBeforeUnload = () => setUserOffline(user.uid);

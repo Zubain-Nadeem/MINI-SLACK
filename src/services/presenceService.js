@@ -1,13 +1,13 @@
 // src/services/presenceService.js
 import { db } from "../firebase/config";
-import { doc, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
+import { doc, setDoc, serverTimestamp, onSnapshot, collection } from "firebase/firestore";
 
-// 🟢 Set user online
-export async function setUserOnline(userId) {
+// 🟢 Set user online (with optional name)
+export async function setUserOnline(userId, name) {
   if (!userId) return;
   await setDoc(
     doc(db, "presence", userId),
-    { state: "online", lastSeen: serverTimestamp() },
+    { state: "online", lastSeen: serverTimestamp(), name },
     { merge: true }
   );
   window.addEventListener("beforeunload", () => setUserOffline(userId));
@@ -25,7 +25,7 @@ export async function setUserOffline(userId) {
 
 // 👀 Listen to all users’ presence
 export function listenPresence(callback) {
-  const unsub = onSnapshot(db.collection("presence"), (snapshot) => {
+  const unsub = onSnapshot(collection(db, "presence"), (snapshot) => {
     const users = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
