@@ -1,8 +1,8 @@
-// src/pages/ProfileSettings.jsx
 import { useState, useEffect } from "react";
-import { db } from "../firebase/config";
+import { db, auth } from "../firebase/config";
 import { doc, setDoc, getDoc } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { updateProfile } from "firebase/auth";
 
 export default function ProfileSettings() {
   const { user } = useAuth();
@@ -26,17 +26,25 @@ export default function ProfileSettings() {
   }, [user]);
 
   const handleSave = async () => {
-    if (!user) return alert("User not logged in");
+    if (!user) return;
+
     try {
+      // 1️⃣ Update Firestore
       await setDoc(
         doc(db, "users", user.uid),
         { name, avatar, status },
         { merge: true }
       );
+
+      // 2️⃣ Update Auth user object
+      await updateProfile(auth.currentUser, {
+        displayName: name,
+        photoURL: avatar,
+      });
+
       alert("Profile updated!");
     } catch (err) {
       console.error("Error updating profile:", err);
-      alert("Failed to update profile: " + err.message);
     }
   };
 

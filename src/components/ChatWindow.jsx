@@ -1,4 +1,3 @@
-// src/components/ChatWindow.jsx
 import { useEffect, useRef, useState } from "react";
 import {
   collection,
@@ -8,6 +7,8 @@ import {
   onSnapshot,
   serverTimestamp,
   where,
+  doc,
+  getDoc,
 } from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "../context/AuthContext";
@@ -33,10 +34,7 @@ export default function ChatWindow({ selectedChannel }) {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
       setMessages(msgs);
     });
 
@@ -58,7 +56,7 @@ export default function ChatWindow({ selectedChannel }) {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 🔹 Input change + typing status
+  // 🔹 Handle typing input
   const handleInputChange = (e) => {
     const val = e.target.value;
     setMessage(val);
@@ -75,11 +73,15 @@ export default function ChatWindow({ selectedChannel }) {
     e.preventDefault();
     if (!message.trim() || !selectedChannel || !user) return;
 
+    // 🔹 Fetch latest profile from Firestore
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    const profile = userDoc.exists() ? userDoc.data() : {};
+
     await addDoc(collection(db, "messages"), {
       text: message.trim(),
       userId: user.uid,
-      name: user.displayName || user.email,
-      avatar: user.photoURL || "https://i.pravatar.cc/40",
+      name: profile.name || user.displayName || user.email,
+      avatar: profile.avatar || user.photoURL || "https://i.pravatar.cc/40",
       channelId: selectedChannel.id,
       createdAt: serverTimestamp(),
     });
@@ -89,20 +91,18 @@ export default function ChatWindow({ selectedChannel }) {
       user.uid,
       selectedChannel.id,
       false,
-      user?.displayName || user?.email
+      profile.name || user.displayName || user.email
     );
   };
 
   return (
     <main className="flex-1 flex flex-col">
-      {/* Header */}
       <div className="p-4 border-b bg-white flex items-center justify-between">
         <h2 className="text-lg font-semibold">
           {selectedChannel ? `#${selectedChannel.name}` : "Select a channel"}
         </h2>
       </div>
 
-      {/* Messages */}
       {selectedChannel ? (
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messages.map((msg) => (
@@ -130,7 +130,6 @@ export default function ChatWindow({ selectedChannel }) {
         </div>
       )}
 
-      {/* Typing indicator */}
       {typingUsers.length > 0 && (
         <div className="px-4 py-1 text-sm text-gray-500">
           {typingUsers.length === 1
@@ -139,7 +138,6 @@ export default function ChatWindow({ selectedChannel }) {
         </div>
       )}
 
-      {/* Input */}
       {selectedChannel && (
         <form
           onSubmit={handleSend}
@@ -148,7 +146,6 @@ export default function ChatWindow({ selectedChannel }) {
           <button type="button" className="text-gray-500 hover:text-gray-700">
             <Paperclip size={20} />
           </button>
-
           <input
             type="text"
             value={message}
@@ -156,11 +153,9 @@ export default function ChatWindow({ selectedChannel }) {
             placeholder={`Message #${selectedChannel.name}`}
             className="flex-1 border rounded-lg p-2 focus:outline-none"
           />
-
           <button type="button" className="text-gray-500 hover:text-gray-700">
             <Smile size={20} />
           </button>
-
           <button
             type="submit"
             className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 flex items-center"
