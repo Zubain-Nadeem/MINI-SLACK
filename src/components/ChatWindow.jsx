@@ -59,7 +59,7 @@ export default function ChatWindow({ selectedChannel }) {
   const handleInputChange = (e) => {
     const val = e.target.value;
     setMessage(val);
-    setTypingStatus(user?.uid, selectedChannel?.id, val.length > 0);
+    setTypingStatus(user?.uid, selectedChannel?.id, val.length > 0, user?.displayName || user?.email);
   };
 
   const handleSend = async (e) => {
@@ -76,7 +76,7 @@ export default function ChatWindow({ selectedChannel }) {
     });
 
     setMessage("");
-    setTypingStatus(user.uid, selectedChannel.id, false);
+    setTypingStatus(user.uid, selectedChannel.id, false, user?.displayName || user?.email);
   };
 
   return (
@@ -118,12 +118,13 @@ export default function ChatWindow({ selectedChannel }) {
 
       {/* Typing indicator */}
       {typingUsers.length > 0 && (
-        <div className="px-4 py-1 text-sm text-gray-500">
-          {typingUsers.map((u) => u.userId).length === 1
-            ? `${typingUsers[0].userId.slice(0, 6)} is typing...`
-            : "Multiple people are typing..."}
-        </div>
-      )}
+  <div className="px-4 py-1 text-sm text-gray-500">
+    {typingUsers.length === 1
+      ? `${typingUsers[0].name} is typing...`
+      : typingUsers.map((u) => u.name).join(", ") + " are typing..."}
+  </div>
+)}
+
 
       {/* Input */}
       {selectedChannel && (
