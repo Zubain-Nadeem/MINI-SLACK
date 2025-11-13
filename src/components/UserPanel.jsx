@@ -5,24 +5,39 @@ import { collection, onSnapshot, doc, getDoc } from "firebase/firestore";
 
 export default function UserPanel() {
   const [users, setUsers] = useState([]);
+  const [userProfiles, setUserProfiles] = useState({}); // cache profiles
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "presence"), async (snapshot) => {
-      const presenceUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      const presenceUsers = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-      const usersWithProfile = await Promise.all(
-        presenceUsers.map(async (pUser) => {
-          const userDoc = await getDoc(doc(db, "users", pUser.id));
-          const profile = userDoc.exists() ? userDoc.data() : {};
-          return { ...pUser, ...profile };
-        })
-      );
+      // fetch missing profiles
+      const missingProfiles = presenceUsers
+        .map((p) => p.id)
+        .filter((id) => !userProfiles[id]);
 
-      setUsers(usersWithProfile);
+      if (missingProfiles.length > 0) {
+        const profiles = await Promise.all(
+          missingProfiles.map(async (id) => {
+            const userDoc = await getDoc(doc(db, "users", id));
+            return userDoc.exists() ? { [id]: userDoc.data() } : { [id]: {} };
+          })
+        );
+        const mergedProfiles = Object.assign({}, ...profiles);
+        setUserProfiles((prev) => ({ ...prev, ...mergedProfiles }));
+      }
+
+      // merge presence + profile for rendering
+      const usersWithProfiles = presenceUsers.map((p) => ({
+        ...p,
+        ...userProfiles[p.id],
+      }));
+
+      setUsers(usersWithProfiles);
     });
 
     return () => unsub();
-  }, []);
+  }, [userProfiles]);
 
   return (
     <aside className="w-64 bg-white border-l p-4 flex flex-col">

@@ -21,27 +21,44 @@ export default function ChatWindow({ selectedChannel }) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
+  const [userProfiles, setUserProfiles] = useState({}); // cache profiles
   const bottomRef = useRef(null);
 
-  // 🔹 Realtime messages listener
+  // 🔹 Fetch messages
   useEffect(() => {
     if (!selectedChannel) return;
-
     const q = query(
       collection(db, "messages"),
       where("channelId", "==", selectedChannel.id),
       orderBy("createdAt", "asc")
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
+    const unsubscribe = onSnapshot(q, async (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+
+      // fetch missing profiles
+      const missingProfiles = msgs
+        .map((m) => m.userId)
+        .filter((id) => !userProfiles[id]);
+
+      if (missingProfiles.length > 0) {
+        const profiles = await Promise.all(
+          missingProfiles.map(async (id) => {
+            const docSnap = await getDoc(doc(db, "users", id));
+            return docSnap.exists() ? { [id]: docSnap.data() } : { [id]: {} };
+          })
+        );
+        const mergedProfiles = Object.assign({}, ...profiles);
+        setUserProfiles((prev) => ({ ...prev, ...mergedProfiles }));
+      }
+
       setMessages(msgs);
     });
 
     return () => unsubscribe();
-  }, [selectedChannel]);
+  }, [selectedChannel, userProfiles]);
 
-  // 🔹 Typing indicator listener
+  // 🔹 Typing indicator
   useEffect(() => {
     if (!selectedChannel) return;
     const unsubscribe = listenTyping(selectedChannel.id, (users) => {
@@ -51,12 +68,11 @@ export default function ChatWindow({ selectedChannel }) {
     return () => unsubscribe();
   }, [selectedChannel, user]);
 
-  // 🔹 Scroll to bottom on new messages
+  // 🔹 Scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 🔹 Handle typing input
   const handleInputChange = (e) => {
     const val = e.target.value;
     setMessage(val);
@@ -68,12 +84,11 @@ export default function ChatWindow({ selectedChannel }) {
     );
   };
 
-  // 🔹 Send message
   const handleSend = async (e) => {
     e.preventDefault();
     if (!message.trim() || !selectedChannel || !user) return;
 
-    // 🔹 Fetch latest profile from Firestore
+    // fetch current user profile
     const userDoc = await getDoc(doc(db, "users", user.uid));
     const profile = userDoc.exists() ? userDoc.data() : {};
 
@@ -118,7 +133,7 @@ export default function ChatWindow({ selectedChannel }) {
                     })
                   : ""
               }
-              avatar={msg.avatar}
+              avatar={userProfiles[msg.userId]?.avatar || msg.avatar}
               isOwn={msg.userId === user?.uid}
             />
           ))}

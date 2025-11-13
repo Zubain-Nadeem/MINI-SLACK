@@ -1,23 +1,31 @@
 // src/components/Sidebar.jsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { workspaces } from "../data";
 
-export default function Sidebar({ onSelectChannel }) {
+export default function Sidebar({ onSelectChannel, selectedChannel }) {
   const [selectedWorkspace, setSelectedWorkspace] = useState(workspaces[0]);
-  const [activeChannel, setActiveChannel] = useState(null);
   const navigate = useNavigate();
+
+  // 🔹 Auto-select first channel if none selected
+  useEffect(() => {
+    if (!selectedChannel && selectedWorkspace.channels?.length > 0) {
+      onSelectChannel(selectedWorkspace.channels[0]);
+    }
+  }, [selectedChannel, selectedWorkspace, onSelectChannel]);
 
   return (
     <aside className="w-64 bg-white border-r p-4 flex flex-col">
       <h2 className="text-xl font-semibold mb-3">Workspaces</h2>
       <select
         value={selectedWorkspace.id}
-        onChange={(e) =>
-          setSelectedWorkspace(
-            workspaces.find((w) => w.id === e.target.value)
-          )
-        }
+        onChange={(e) => {
+          const ws = workspaces.find((w) => w.id === e.target.value);
+          setSelectedWorkspace(ws);
+          if (ws.channels?.length > 0) {
+            onSelectChannel(ws.channels[0]);
+          }
+        }}
         className="border rounded-lg p-2 mb-4"
       >
         {workspaces.map((w) => (
@@ -32,12 +40,11 @@ export default function Sidebar({ onSelectChannel }) {
         {selectedWorkspace.channels.map((ch) => (
           <li
             key={ch.id}
-            onClick={() => {
-              setActiveChannel(ch);
-              onSelectChannel(ch);
-            }}
+            onClick={() => onSelectChannel(ch)}
             className={`p-2 rounded cursor-pointer ${
-              activeChannel?.id === ch.id ? "bg-blue-100" : "hover:bg-gray-200"
+              selectedChannel?.id === ch.id
+                ? "bg-blue-100"
+                : "hover:bg-gray-200"
             }`}
           >
             #{ch.name}
