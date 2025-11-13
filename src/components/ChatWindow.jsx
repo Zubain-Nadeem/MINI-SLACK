@@ -22,7 +22,7 @@ export default function ChatWindow({ selectedChannel }) {
   const [typingUsers, setTypingUsers] = useState([]);
   const bottomRef = useRef(null);
 
-  // 🔹 Fetch messages
+  // 🔹 Realtime messages listener
   useEffect(() => {
     if (!selectedChannel) return;
 
@@ -33,7 +33,10 @@ export default function ChatWindow({ selectedChannel }) {
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+      const msgs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
       setMessages(msgs);
     });
 
@@ -50,18 +53,24 @@ export default function ChatWindow({ selectedChannel }) {
     return () => unsubscribe();
   }, [selectedChannel, user]);
 
-  // 🔹 Scroll to bottom
+  // 🔹 Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 🔹 Handle typing + send message
+  // 🔹 Input change + typing status
   const handleInputChange = (e) => {
     const val = e.target.value;
     setMessage(val);
-    setTypingStatus(user?.uid, selectedChannel?.id, val.length > 0, user?.displayName || user?.email);
+    setTypingStatus(
+      user?.uid,
+      selectedChannel?.id,
+      val.length > 0,
+      user?.displayName || user?.email
+    );
   };
 
+  // 🔹 Send message
   const handleSend = async (e) => {
     e.preventDefault();
     if (!message.trim() || !selectedChannel || !user) return;
@@ -76,7 +85,12 @@ export default function ChatWindow({ selectedChannel }) {
     });
 
     setMessage("");
-    setTypingStatus(user.uid, selectedChannel.id, false, user?.displayName || user?.email);
+    setTypingStatus(
+      user.uid,
+      selectedChannel.id,
+      false,
+      user?.displayName || user?.email
+    );
   };
 
   return (
@@ -118,13 +132,12 @@ export default function ChatWindow({ selectedChannel }) {
 
       {/* Typing indicator */}
       {typingUsers.length > 0 && (
-  <div className="px-4 py-1 text-sm text-gray-500">
-    {typingUsers.length === 1
-      ? `${typingUsers[0].name} is typing...`
-      : typingUsers.map((u) => u.name).join(", ") + " are typing..."}
-  </div>
-)}
-
+        <div className="px-4 py-1 text-sm text-gray-500">
+          {typingUsers.length === 1
+            ? `${typingUsers[0].name} is typing...`
+            : typingUsers.map((u) => u.name).join(", ") + " are typing..."}
+        </div>
+      )}
 
       {/* Input */}
       {selectedChannel && (
