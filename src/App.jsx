@@ -3,6 +3,7 @@ import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ChatPage from "./pages/ChatPage";
 import PrivateRoute from "./components/PrivateRoute";
+import ProfileSettings from "./components/ProfileSettings"; // new component
 
 function App() {
   return (
@@ -15,6 +16,14 @@ function App() {
         element={
           <PrivateRoute>
             <ChatPage />
+          </PrivateRoute>
+        }
+      />
+      <Route
+        path="/profile"
+        element={
+          <PrivateRoute>
+            <ProfileSettings />
           </PrivateRoute>
         }
       />

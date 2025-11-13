@@ -1,9 +1,12 @@
+// src/components/Sidebar.jsx
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { workspaces } from "../data";
 
 export default function Sidebar({ onSelectChannel }) {
   const [selectedWorkspace, setSelectedWorkspace] = useState(workspaces[0]);
   const [activeChannel, setActiveChannel] = useState(null);
+  const navigate = useNavigate();
 
   return (
     <aside className="w-64 bg-white border-r p-4 flex flex-col">
@@ -41,6 +44,14 @@ export default function Sidebar({ onSelectChannel }) {
           </li>
         ))}
       </ul>
+
+      {/* Profile button */}
+      <button
+        onClick={() => navigate("/profile")}
+        className="mt-4 text-blue-600 hover:text-blue-800 text-left"
+      >
+        Profile
+      </button>
     </aside>
   );
 }
