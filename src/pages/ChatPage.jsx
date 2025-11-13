@@ -1,10 +1,31 @@
-import { useState } from "react";
+// src/pages/ChatPage.jsx
+import { useEffect, useState } from "react";
+import { useAuth } from "../context/AuthContext";
+import { setUserOnline, setUserOffline } from "../services/presenceService";
 import Sidebar from "../components/Sidebar";
 import ChatWindow from "../components/ChatWindow";
 import UserPanel from "../components/UserPanel";
 
 export default function ChatPage() {
+  const { user } = useAuth();
   const [selectedChannel, setSelectedChannel] = useState(null);
+
+  // 🔹 Presence setup
+  useEffect(() => {
+    if (user) {
+      // Mark user online
+      setUserOnline(user.uid);
+
+      // When user leaves → mark offline
+      const handleBeforeUnload = () => setUserOffline(user.uid);
+      window.addEventListener("beforeunload", handleBeforeUnload);
+
+      return () => {
+        setUserOffline(user.uid);
+        window.removeEventListener("beforeunload", handleBeforeUnload);
+      };
+    }
+  }, [user]);
 
   return (
     <div className="flex h-screen bg-gray-100">
