@@ -1,8 +1,17 @@
 // src/components/ChatWindow.jsx
 import { useEffect, useRef, useState } from "react";
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp, where } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  query,
+  orderBy,
+  onSnapshot,
+  serverTimestamp,
+  where,
+} from "firebase/firestore";
 import { db } from "../firebase/config";
 import { useAuth } from "../context/AuthContext";
+import { setTypingStatus, listenTyping } from "../services/typingService";
 import MessageBubble from "./MessageBubble";
 import { Paperclip, Smile, Send } from "lucide-react";
 
@@ -10,11 +19,13 @@ export default function ChatWindow({ selectedChannel }) {
   const { user } = useAuth();
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [typingUsers, setTypingUsers] = useState([]);
   const bottomRef = useRef(null);
 
-  // 🔹 Fetch messages for selected channel
+  // 🔹 Fetch messages
   useEffect(() => {
     if (!selectedChannel) return;
+
     const q = query(
       collection(db, "messages"),
       where("channelId", "==", selectedChannel.id),
@@ -29,12 +40,28 @@ export default function ChatWindow({ selectedChannel }) {
     return () => unsubscribe();
   }, [selectedChannel]);
 
-  // 🔹 Scroll to bottom on new messages
+  // 🔹 Typing indicator listener
+  useEffect(() => {
+    if (!selectedChannel) return;
+    const unsubscribe = listenTyping(selectedChannel.id, (users) => {
+      const others = users.filter((u) => u.userId !== user?.uid);
+      setTypingUsers(others);
+    });
+    return () => unsubscribe();
+  }, [selectedChannel, user]);
+
+  // 🔹 Scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // 🔹 Send a message
+  // 🔹 Handle typing + send message
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setMessage(val);
+    setTypingStatus(user?.uid, selectedChannel?.id, val.length > 0);
+  };
+
   const handleSend = async (e) => {
     e.preventDefault();
     if (!message.trim() || !selectedChannel || !user) return;
@@ -49,6 +76,7 @@ export default function ChatWindow({ selectedChannel }) {
     });
 
     setMessage("");
+    setTypingStatus(user.uid, selectedChannel.id, false);
   };
 
   return (
@@ -58,7 +86,6 @@ export default function ChatWindow({ selectedChannel }) {
         <h2 className="text-lg font-semibold">
           {selectedChannel ? `#${selectedChannel.name}` : "Select a channel"}
         </h2>
-        <button className="text-sm text-blue-600">Members</button>
       </div>
 
       {/* Messages */}
@@ -89,6 +116,15 @@ export default function ChatWindow({ selectedChannel }) {
         </div>
       )}
 
+      {/* Typing indicator */}
+      {typingUsers.length > 0 && (
+        <div className="px-4 py-1 text-sm text-gray-500">
+          {typingUsers.map((u) => u.userId).length === 1
+            ? `${typingUsers[0].userId.slice(0, 6)} is typing...`
+            : "Multiple people are typing..."}
+        </div>
+      )}
+
       {/* Input */}
       {selectedChannel && (
         <form
@@ -102,7 +138,7 @@ export default function ChatWindow({ selectedChannel }) {
           <input
             type="text"
             value={message}
-            onChange={(e) => setMessage(e.target.value)}
+            onChange={handleInputChange}
             placeholder={`Message #${selectedChannel.name}`}
             className="flex-1 border rounded-lg p-2 focus:outline-none"
           />
