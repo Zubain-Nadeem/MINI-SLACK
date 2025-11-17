@@ -21,10 +21,10 @@ export default function ChatWindow({ selectedChannel }) {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const [typingUsers, setTypingUsers] = useState([]);
-  const [userProfiles, setUserProfiles] = useState({}); // cache profiles
+  const [userProfiles, setUserProfiles] = useState({});
   const bottomRef = useRef(null);
 
-  // 🔹 Fetch messages
+  // 🟢 GET MESSAGES LIVE
   useEffect(() => {
     if (!selectedChannel) return;
     const q = query(
@@ -36,61 +36,64 @@ export default function ChatWindow({ selectedChannel }) {
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const msgs = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-      // fetch missing profiles
-      const missingProfiles = msgs
+      const missing = msgs
         .map((m) => m.userId)
         .filter((id) => !userProfiles[id]);
 
-      if (missingProfiles.length > 0) {
+      if (missing.length > 0) {
         const profiles = await Promise.all(
-          missingProfiles.map(async (id) => {
-            const docSnap = await getDoc(doc(db, "users", id));
-            return docSnap.exists() ? { [id]: docSnap.data() } : { [id]: {} };
+          missing.map(async (id) => {
+            const snap = await getDoc(doc(db, "users", id));
+            return snap.exists() ? { [id]: snap.data() } : { [id]: {} };
           })
         );
-        const mergedProfiles = Object.assign({}, ...profiles);
-        setUserProfiles((prev) => ({ ...prev, ...mergedProfiles }));
+
+        setUserProfiles((prev) => ({
+          ...prev,
+          ...Object.assign({}, ...profiles),
+        }));
       }
 
       setMessages(msgs);
     });
 
     return () => unsubscribe();
-  }, [selectedChannel, userProfiles]);
+  }, [selectedChannel]); // 🔥 FIXED (removed infinite loop)
 
-  // 🔹 Typing indicator
+  // 🟢 LISTEN TYPING
   useEffect(() => {
     if (!selectedChannel) return;
-    const unsubscribe = listenTyping(selectedChannel.id, (users) => {
-      const others = users.filter((u) => u.userId !== user?.uid);
-      setTypingUsers(others);
+    const un = listenTyping(selectedChannel.id, (users) => {
+      setTypingUsers(users.filter((u) => u.userId !== user?.uid));
     });
-    return () => unsubscribe();
+    return () => un();
   }, [selectedChannel, user]);
 
-  // 🔹 Scroll to bottom
+  // 🟢 AUTO SCROLL
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // 🟢 HANDLE TYPING
   const handleInputChange = (e) => {
     const val = e.target.value;
     setMessage(val);
+
     setTypingStatus(
       user?.uid,
       selectedChannel?.id,
-      val.length > 0,
+      val.trim().length > 0,
       user?.displayName || user?.email
     );
   };
 
+  // 🟢 SEND MESSAGE
   const handleSend = async (e) => {
     e.preventDefault();
     if (!message.trim() || !selectedChannel || !user) return;
 
-    // fetch current user profile
-    const userDoc = await getDoc(doc(db, "users", user.uid));
-    const profile = userDoc.exists() ? userDoc.data() : {};
+    const snap = await getDoc(doc(db, "users", user.uid));
+    const profile = snap.exists() ? snap.data() : {};
 
     await addDoc(collection(db, "messages"), {
       text: message.trim(),
@@ -102,12 +105,7 @@ export default function ChatWindow({ selectedChannel }) {
     });
 
     setMessage("");
-    setTypingStatus(
-      user.uid,
-      selectedChannel.id,
-      false,
-      profile.name || user.displayName || user.email
-    );
+    setTypingStatus(user.uid, selectedChannel.id, false);
   };
 
   return (
@@ -145,6 +143,7 @@ export default function ChatWindow({ selectedChannel }) {
         </div>
       )}
 
+      {/* 🟢 TYPING INDICATOR */}
       {typingUsers.length > 0 && (
         <div className="px-4 py-1 text-sm text-gray-500">
           {typingUsers.length === 1
@@ -153,6 +152,7 @@ export default function ChatWindow({ selectedChannel }) {
         </div>
       )}
 
+      {/* 🟢 INPUT BAR */}
       {selectedChannel && (
         <form
           onSubmit={handleSend}
@@ -161,6 +161,7 @@ export default function ChatWindow({ selectedChannel }) {
           <button type="button" className="text-gray-500 hover:text-gray-700">
             <Paperclip size={20} />
           </button>
+
           <input
             type="text"
             value={message}
@@ -168,9 +169,11 @@ export default function ChatWindow({ selectedChannel }) {
             placeholder={`Message #${selectedChannel.name}`}
             className="flex-1 border rounded-lg p-2 focus:outline-none"
           />
+
           <button type="button" className="text-gray-500 hover:text-gray-700">
             <Smile size={20} />
           </button>
+
           <button
             type="submit"
             className="bg-blue-600 text-white p-2 rounded-lg hover:bg-blue-700 flex items-center"
